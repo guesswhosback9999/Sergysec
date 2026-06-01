@@ -57,48 +57,7 @@ async function getAllFiles(directory, fileList = []) {
     }
     
     return fileList;
-}
 
-
-
-
-
-
-export async function loadCommands(client) {
-    client.commands = new Collection();
-    const commandsPath = path.join(__dirname, '../commands');
-    const commandFiles = await getAllFiles(commandsPath);
-    
-    logger.info(`Found ${commandFiles.length} command files to load`);
-    
-    const uniqueCommandNames = new Set();
-    
-    for (const filePath of commandFiles) {
-        try {
-            const normalizedPath = filePath.replace(/\\/g, '/');
-            
-            const commandName = path.basename(filePath, '.js');
-            const commandDir = path.dirname(filePath);
-            const category = path.basename(commandDir);
-            
-            const commandModule = await import(`file://${filePath}`);
-            const command = commandModule.default || commandModule;
-            
-            if (!command.data || !command.execute) {
-                logger.warn(`Command at ${filePath} is missing required "data" or "execute" property.`);
-                continue;
-            }
-            
-            command.category = category;
-            command.filePath = normalizedPath;
-            
-            const primaryCommandName = command.data.name;
-            
-            if (!uniqueCommandNames.has(primaryCommandName)) {
-                uniqueCommandNames.add(primaryCommandName);
-                
-                client.commands.set(primaryCommandName, command);
-            }
             
             const subcommands = getSubcommandInfo(command.data.toJSON());
             
@@ -302,28 +261,6 @@ const registeredNames = new Set();
 
 
 
-export async function reloadCommand(client, commandName) {
-    const command = client.commands.get(commandName);
-    
-    if (!command) {
-        return { success: false, message: `Command "${commandName}" not found` };
-    }
-    
-    try {
-        const commandPath = path.resolve(command.filePath);
-        const moduleUrl = pathToFileURL(commandPath);
-        moduleUrl.searchParams.set('t', Date.now().toString());
 
-        const newCommand = (await import(moduleUrl.href)).default;
-        
-        client.commands.set(commandName, newCommand);
-        
-        logger.info(`Reloaded command: ${commandName}`);
-        return { success: true, message: `Successfully reloaded command "${commandName}"` };
-    } catch (error) {
-        logger.error(`Error reloading command "${commandName}":`, error);
-        return { success: false, message: `Error reloading command: ${error.message}` };
-    }
-}
 
 
